@@ -3,7 +3,7 @@ import { Sha256, reverseByteString } from 'scrypt-ts'
 import { BTCMerkle } from '../src/contracts/btcMerkle'
 import { getDefaultSigner } from './utils/txHelper'
 import chaiAsPromised from 'chai-as-promised'
-import { MerklePath, MerkleProof } from '../src/contracts/merklePath'
+import { MerklePath, MerkleProof, NodePos } from '../src/contracts/merklePath'
 use(chaiAsPromised)
 
 describe('Test SmartContract `BTCMerkle`', () => {
@@ -41,7 +41,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -50,7 +50,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -59,7 +59,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.LEFT_NODE,
+                pos: NodePos.Left,
             },
             {
                 hash: Sha256(
@@ -68,7 +68,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -77,7 +77,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -86,7 +86,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -95,7 +95,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.LEFT_NODE,
+                pos: NodePos.Left,
             },
             {
                 hash: Sha256(
@@ -104,7 +104,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -113,7 +113,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -122,7 +122,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -131,7 +131,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.LEFT_NODE,
+                pos: NodePos.Left,
             },
             {
                 hash: Sha256(
@@ -140,7 +140,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.LEFT_NODE,
+                pos: NodePos.Left,
             },
             {
                 hash: Sha256(
@@ -149,7 +149,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.LEFT_NODE,
+                pos: NodePos.Left,
             },
             {
                 hash: Sha256(
@@ -158,7 +158,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -167,7 +167,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -176,7 +176,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.LEFT_NODE,
+                pos: NodePos.Left,
             },
             {
                 hash: Sha256(
@@ -185,7 +185,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -194,7 +194,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -203,7 +203,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -212,7 +212,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -221,7 +221,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
             {
                 hash: Sha256(
@@ -230,18 +230,18 @@ describe('Test SmartContract `BTCMerkle`', () => {
                         32n
                     )
                 ),
-                pos: MerklePath.RIGHT_NODE,
+                pos: NodePos.Right,
             },
-            { hash: Sha256('00'.repeat(32)), pos: MerklePath.INVALID_NODE }, // Fill in rest to match buffer len
-            { hash: Sha256('00'.repeat(32)), pos: MerklePath.INVALID_NODE },
-            { hash: Sha256('00'.repeat(32)), pos: MerklePath.INVALID_NODE },
-            { hash: Sha256('00'.repeat(32)), pos: MerklePath.INVALID_NODE },
-            { hash: Sha256('00'.repeat(32)), pos: MerklePath.INVALID_NODE },
-            { hash: Sha256('00'.repeat(32)), pos: MerklePath.INVALID_NODE },
-            { hash: Sha256('00'.repeat(32)), pos: MerklePath.INVALID_NODE },
-            { hash: Sha256('00'.repeat(32)), pos: MerklePath.INVALID_NODE },
-            { hash: Sha256('00'.repeat(32)), pos: MerklePath.INVALID_NODE },
-            { hash: Sha256('00'.repeat(32)), pos: MerklePath.INVALID_NODE },
+            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid }, // Fill in rest to match buffer len
+            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
+            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
+            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
+            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
+            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
+            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
+            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
+            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
+            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
         ]
 
         const result = instance.verify((self) => {
@@ -257,7 +257,7 @@ describe('Test SmartContract `BTCMerkle`', () => {
                     32n
                 )
             ),
-            pos: MerklePath.RIGHT_NODE,
+            pos: NodePos.Right,
         }
         expect(() => {
             instance.verify((self) => {
