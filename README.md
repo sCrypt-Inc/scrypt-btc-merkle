@@ -1,19 +1,22 @@
-# sCrypt Btc Merkle
+# sCrypt BTC Merkle
 
-## Build
+## Run Locally
 
-```sh
-npm run build
+Add private key to `.env`:
+
+```
+PRIVATE_KEY="cTE..."
 ```
 
-## Testing Locally
+Compile contract:
 
 ```sh
-npm run test
+npm run compile
 ```
 
-## Run Tests on the Bitcoin Testnet
+Adjust contract script in `scripts/merkle.ts` and run it:
 
 ```sh
-npm run test:testnet
+npx ts-node scripts/merkle.ts
 ```
+
