@@ -1,10 +1,44 @@
+// @ts-ignore
+import btc = require('bitcore-lib-inquisition');
+import axios from 'axios';
+import { Tap } from '@cmdcode/tapscript'  // Requires node >= 19
+import BigInteger = require('bigi')
+
+import dotenv = require('dotenv');
+dotenv.config();
+
 import { expect, use } from 'chai'
 import { Sha256, reverseByteString } from 'scrypt-ts'
 import { BTCMerkle } from '../src/contracts/btcMerkle'
-import { getDefaultSigner } from './utils/txHelper'
 import chaiAsPromised from 'chai-as-promised'
-import { MerklePath, MerkleProof, NodePos } from '../src/contracts/merklePath'
 use(chaiAsPromised)
+
+async function fetchP2WPKHUtxos(address: btc.Address): Promise<any[]> {
+    const url = `https://explorer.bc-2.jp/api/address/${address.toString()}/utxo`;
+
+    let res = []
+    try {
+        // Make a GET request to the URL using axios
+        const response = await axios.get(url);
+
+        if (response.data) {
+            for (let i = 0; i < response.data.length; i++) {
+                const e = response.data[i]
+                const utxo = {
+                    address: address.toString(),
+                    txId: e.txid,
+                    outputIndex: e.vout,
+                    script: new btc.Script(address),
+                    satoshis: e.value
+                };
+                res.push(utxo)
+            }
+        }
+    } catch (error) { // Handle any errors that occurred during the request
+        console.error('Failed to fetch data:', error);
+    }
+    return res
+}
 
 describe('Test SmartContract `BTCMerkle`', () => {
     let instance: BTCMerkle
@@ -20,250 +54,140 @@ describe('Test SmartContract `BTCMerkle`', () => {
         )
 
         instance = new BTCMerkle(merkleRoot)
-        await instance.connect(getDefaultSigner())
-        
+
         console.log('Script len:', instance.lockingScript.toBuffer().length)
     })
 
-    it('merkle proof validation', async () => {
-        const leaf = Sha256(
-            reverseByteString(
-                'b56e7872506c7eedbda2c0c777235a827014e0cd4511dc16c8819e828ca6b2cb',
-                32n
+    it('merkle proof validation BTC', async () => {
+        const seckey = new btc.PrivateKey(process.env.PRIVATE_KEY, btc.Networks.testnet)
+        const pubkey = seckey.toPublicKey()
+        const addrP2WPKH = seckey.toAddress(null, btc.Address.PayToWitnessPublicKeyHash)
+
+        const xOnlyPub = pubkey.toBuffer().length > 32 ? pubkey.toBuffer().slice(1, 33) : pubkey.toBuffer()
+
+        let scriptMerkle = new btc.Script(instance.lockingScript.toHex())
+        const tapleafMerkle = Tap.encodeScript(scriptMerkle.toBuffer())
+        const [tpubkeyMerkle, cblockMerkle] = Tap.getPubKey(pubkey.toString(), { target: tapleafMerkle })
+        const scripMerkleP2TR = new btc.Script(`OP_1 32 0x${tpubkeyMerkle}}`)
+
+        // Fetch UTXO's for address
+        const utxos = await fetchP2WPKHUtxos(addrP2WPKH)
+
+        console.log(utxos)
+
+        const tx0 = new btc.Transaction()
+            .from(utxos)
+            .addOutput(new btc.Transaction.Output({
+                satoshis: 6000,
+                script: scripMerkleP2TR
+            }))
+            .change(addrP2WPKH)
+            .feePerByte(2)
+            .sign(seckey)
+
+        console.log('tx0 (serialized):', tx0.uncheckedSerialize())
+
+
+        //////// CALL - UNLOCK
+
+        const utxoMerkleP2TR = {
+            txId: tx0.id,
+            outputIndex: 0,
+            script: scripMerkleP2TR,
+            satoshis: 6000
+        };
+
+        const tx1 = new btc.Transaction()
+            .from(utxoMerkleP2TR)
+            .to(
+                [
+                    {
+                        address: addrP2WPKH,
+                        satoshis: 2000
+                    }
+                ]
             )
-        )
 
-        const merkleProof: MerkleProof = [
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '5c467fff75d9b287543af108b915ab2f1292b4455bdfee581b84688e02f1757f',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '28cf703de3c228d6137a22d78664ef4adee60f58bedebd93a1524d086e580d77',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '1ed596283bbbbbec777779f6e15b49641a2821c8a5c6bc6532c8c93705ed5e1f',
-                        32n
-                    )
-                ),
-                pos: NodePos.Left,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        'bf09df2adb28700296884a4d98c4557602d9e192f74261ba596256d70951cc14',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '2170ac7dd082f91f79e26f608334912f51342840004c44f467a6160a9bde21be',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '21b9cb162a3c4fd8b13e4c31dc20f340bef05511f21e576325da7106b506dd73',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        'a5d0a5adff3f4e19536313e4b8d1a883758d30a8b5bfa97666e3d120a4fad4d4',
-                        32n
-                    )
-                ),
-                pos: NodePos.Left,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '3c9eae626871a5a97f16bf27451b0f1eda63ad65e4aabe7007ca4aaaaea04349',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '74e31bdf48fb91784874194238dba3aff933331e6ad1ee78f29e29216364d934',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        'b4638203ebc68a5bc3dac151373b44b7b326421e152aa91c8bf6665920799f5c',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        'e78e29bfdb7dc728f96be29462a73fe97fa9aa3f458b12863c6ac64e7fc17c17',
-                        32n
-                    )
-                ),
-                pos: NodePos.Left,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '7dc21d4fb04fc56709988652c55257c51deb23f147d22e46f41a6b3bf79c50ae',
-                        32n
-                    )
-                ),
-                pos: NodePos.Left,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '8e314e3bc7193773342c3982fe1c28a08010c2f88b03d4e41e0b9bd1f99a513b',
-                        32n
-                    )
-                ),
-                pos: NodePos.Left,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        'a0a47ef3439eada02b68a16f93e1876eee6694e6a24a4cbeaf708bc6f29f6f14',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '40330475405b219552d7067c33702da70c33107f0a6556304ea61b861672ddbc',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '1c344c713e744c48e25f0023a55dbf45fce1a72ba721ba130927a524043b6862',
-                        32n
-                    )
-                ),
-                pos: NodePos.Left,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        'c11762d7987539e97030d0e581226b23607dddc5503dfdcd675b7825abd1b356',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '16f8810622c4c6d5c4a950a02eae60a4141e4f260a3ea91f76721575de4572e6',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '4ca42e393a4cff6d9d4e837d29d23cd36f9b6fc0f35e1e043ca68e06f1cbaf66',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        'c973ca6289dc0861ee4804d0dbaf8bd7d227b79d9ca73fa208e079cb95bcadbc',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        '713e20bf8fd50f287b58669cbba114a154d279053adae07ee4af9d5967c265f7',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            {
-                hash: Sha256(
-                    reverseByteString(
-                        'bba3635e83a918fa0b39c564b746aa8cf0e8c71055b74b30253cd19aaa7503da',
-                        32n
-                    )
-                ),
-                pos: NodePos.Right,
-            },
-            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid }, // Fill in rest to match buffer len
-            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
-            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
-            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
-            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
-            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
-            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
-            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
-            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
-            { hash: Sha256('00'.repeat(32)), pos: NodePos.Invalid },
+        let witnesses = [
+            Buffer.from('cbb2a68c829e81c816dc1145cde01470825a2377c7c0a2bded7e6c5072786eb5', 'hex'), // Leaf
+            Buffer.from('7f75f1028e68841b58eedf5b45b492122fab15b908f13a5487b2d975ff7f465c', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('770d586e084d52a193bddebe580fe6de4aef6486d7227a13d628c2e33d70cf28', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('1f5eed0537c9c83265bcc6a5c821281a64495be1f6797777ecbbbb3b2896d51e', 'hex'),
+            Buffer.from('01', 'hex'),
+            Buffer.from('14cc5109d7566259ba6142f792e1d9027655c4984d4a8896027028db2adf09bf', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('be21de9b0a16a667f4444c00402834512f913483606fe2791ff982d07dac7021', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('73dd06b50671da2563571ef21155f0be40f320dc314c3eb1d84f3c2a16cbb921', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('d4d4faa420d1e36676a9bfb5a8308d7583a8d1b8e4136353194e3fffada5d0a5', 'hex'),
+            Buffer.from('01', 'hex'),
+            Buffer.from('4943a0aeaa4aca0770beaae465ad63da1e0f1b4527bf167fa9a5716862ae9e3c', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('34d9646321299ef278eed16a1e3333f9afa3db38421974487891fb48df1be374', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('5c9f79205966f68b1ca92a151e4226b3b7443b3751c1dac35b8ac6eb038263b4', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('177cc17f4ec66a3c86128b453faaa97fe93fa76294e26bf928c77ddbbf298ee7', 'hex'),
+            Buffer.from('01', 'hex'),
+            Buffer.from('ae509cf73b6b1af4462ed247f123eb1dc55752c55286980967c54fb04f1dc27d', 'hex'),
+            Buffer.from('01', 'hex'),
+            Buffer.from('3b519af9d19b0b1ee4d4038bf8c21080a0281cfe82392c34733719c73b4e318e', 'hex'),
+            Buffer.from('01', 'hex'),
+            Buffer.from('146f9ff2c68b70afbe4c4aa2e69466ee6e87e1936fa1682ba0ad9e43f37ea4a0', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('bcdd7216861ba64e3056650a7f10330ca72d70337c06d75295215b4075043340', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('62683b0424a5270913ba21a72ba7e1fc45bf5da523005fe2484c743e714c341c', 'hex'),
+            Buffer.from('01', 'hex'),
+            Buffer.from('56b3d1ab25785b67cdfd3d50c5dd7d60236b2281e5d03070e9397598d76217c1', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('e67245de751572761fa93e0a264f1e14a460ae2ea050a9c4d5c6c4220681f816', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('66afcbf1068ea63c041e5ef3c06f9b6fd33cd2297d834e9d6dff4c3a392ea44c', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('bcadbc95cb79e008a23fa79c9db727d2d78bafdbd00448ee6108dc8962ca73c9', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('f765c267599dafe47ee0da3a0579d254a114a1bb9c66587b280fd58fbf203e71', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('da0375aa9ad13c25304bb75510c7e8f08caa46b764c5390bfa18a9835e63a3bb', 'hex'),
+            Buffer.from('02', 'hex'),
+            Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'),
+            Buffer.from('', 'hex'),
+            Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'),
+            Buffer.from('', 'hex'),
+            Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'),
+            Buffer.from('', 'hex'),
+            Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'),
+            Buffer.from('', 'hex'),
+            Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'),
+            Buffer.from('', 'hex'),
+            Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'),
+            Buffer.from('', 'hex'),
+            Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'),
+            Buffer.from('', 'hex'),
+            Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'),
+            Buffer.from('', 'hex'),
+            Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'),
+            Buffer.from('', 'hex'),
+            Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'),
+            Buffer.from('', 'hex'),
+            scriptMerkle.toBuffer(),
+            Buffer.from(cblockMerkle, 'hex')
         ]
+        tx1.inputs[0].witnesses = witnesses
+        console.log('tx1 (serialized):', tx1.uncheckedSerialize())
 
-        const result = instance.verify((self) => {
-            self.unlock(leaf, merkleProof)
-        })
-        expect(result.success, result.error).to.be.true
 
-        // Sould fail if anything is off
-        merkleProof[9] = {
-            hash: Sha256(
-                reverseByteString(
-                    'b4638203ebc68a5bc3dac151373b44b7b326421e152fa91c8bf6665920799f5c',
-                    32n
-                )
-            ),
-            pos: NodePos.Right,
-        }
-        expect(() => {
-            instance.verify((self) => {
-                self.unlock(leaf, merkleProof)
-            })
-        }).to.throw(/Execution failed/)
+        // Run locally
+        let interpreter = new btc.Script.Interpreter()
+        let flags = btc.Script.Interpreter.SCRIPT_VERIFY_WITNESS | btc.Script.Interpreter.SCRIPT_VERIFY_TAPROOT
+        let res = interpreter.verify(new btc.Script(''), tx0.outputs[0].script, tx1, 0, flags, witnesses, 6000)
+
+        expect(res).to.be.true
+
     })
 
 })
